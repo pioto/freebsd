@@ -278,6 +278,15 @@ WITH_HESIOD=
 WITH_IDEA=
 .endif
 
+# Enable FDT by default for selected platforms.
+.if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
+# XXX this is temporarily disabled until all FDT support code is in place.
+#_fdt=	FDT
+_no_fdt= FDT
+.else
+_no_fdt= FDT
+.endif
+
 #
 # Default behaviour of MK_CLANG depends on the architecture.
 #
@@ -326,6 +335,7 @@ _clang_no=CLANG
     DICT \
     DYNAMICROOT \
     EXAMPLES \
+    ${_fdt} \
     FLOPPY \
     FORTH \
     FP_LIBC \
@@ -421,6 +431,7 @@ MK_${var}:=	yes
     BIND_SIGCHASE \
     BIND_XML \
     ${_clang_no} \
+    ${_no_fdt} \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
@@ -539,7 +550,8 @@ MK_${var}_SUPPORT:= yes
 # MK_* options whose default value depends on another option.
 #
 .for vv in \
-    GSSAPI/KERBEROS
+    GSSAPI/KERBEROS \
+    MAN_UTILS/MAN
 .if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
 .error WITH_${vv:H} and WITHOUT_${vv:H} can't both be set.
 .endif

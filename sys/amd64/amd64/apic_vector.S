@@ -41,7 +41,6 @@
 
 #include "assym.s"
 
-	.extern	doreti_iret
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
  * each interrupt source, we use one entry point for each 32-bit word
@@ -102,6 +101,18 @@ IDTVEC(timerint)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
 	call	lapic_handle_timer
+	MEXITCOUNT
+	jmp	doreti
+
+/*
+ * Local APIC CMCI handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(cmcint)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	call	lapic_handle_cmc
 	MEXITCOUNT
 	jmp	doreti
 

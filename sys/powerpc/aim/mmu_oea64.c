@@ -1235,6 +1235,8 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	    ("moea64_enter_locked: page %p is not busy", m));
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
@@ -1328,12 +1330,14 @@ moea64_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
+	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		moea64_enter_locked(pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1475,8 +1479,8 @@ boolean_t
 moea64_is_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_is_referenced: page %p is not managed", m));
 	return (moea64_query_bit(m, PTE_REF));
 }
 
@@ -1484,9 +1488,18 @@ boolean_t
 moea64_is_modified(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_is_modified: page %p is not managed", m));
 
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no PTEs can have LPTE_CHG set.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->flags & PG_WRITEABLE) == 0)
+		return (FALSE);
 	return (moea64_query_bit(m, LPTE_CHG));
 }
 
@@ -1494,18 +1507,33 @@ void
 moea64_clear_reference(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return;
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_clear_reference: page %p is not managed", m));
+	vm_page_lock_queues();
 	moea64_clear_bit(m, LPTE_REF, NULL);
+	vm_page_unlock_queues();
 }
 
 void
 moea64_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_clear_modify: page %p is not managed", m));
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) == 0,
+	    ("moea64_clear_modify: page %p is busy", m));
+
+	/*
+	 * If the page is not PG_WRITEABLE, then no PTEs can have LPTE_CHG
+	 * set.  If the object containing the page is locked and the page is
+	 * not VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 */
+	if ((m->flags & PG_WRITEABLE) == 0)
 		return;
+	vm_page_lock_queues();
 	moea64_clear_bit(m, LPTE_CHG, NULL);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1519,7 +1547,16 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	pmap_t	pmap;
 	uint64_t lo;
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_remove_write: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no page table entries need updating.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
@@ -2355,7 +2392,7 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 	if (moea64_attr_fetch(m) & ptebit)
 		return (TRUE);
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
@@ -2367,6 +2404,7 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 		if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
 			moea64_attr_save(m, ptebit);
 			MOEA_PVO_CHECK(pvo);	/* sanity check */
+			vm_page_unlock_queues();
 			return (TRUE);
 		}
 	}
@@ -2394,12 +2432,14 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 
 				moea64_attr_save(m, ptebit);
 				MOEA_PVO_CHECK(pvo);	/* sanity check */
+				vm_page_unlock_queues();
 				return (TRUE);
 			}
 		}
 		UNLOCK_TABLE();
 	}
 
+	vm_page_unlock_queues();
 	return (FALSE);
 }
 

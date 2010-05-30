@@ -40,6 +40,15 @@ ${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
 		${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td > ${.TARGET}
 . endfor
 .endfor
+
+CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
+	   -gen-opt-parser-defs \
+	   ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td > ${.TARGET}
+CC1Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1Options.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
+	   -gen-opt-parser-defs \
+	   ${CLANG_SRCS}/include/clang/Driver/CC1Options.td > ${.TARGET}
 DiagnosticGroups.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
 		-gen-clang-diag-groups \
@@ -54,11 +63,10 @@ Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
 	   -gen-opt-parser-defs \
 	   ${CLANG_SRCS}/include/clang/Driver/Options.td > ${.TARGET}
-
-CC1Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1Options.td
-	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
-	   -gen-opt-parser-defs \
-	   ${CLANG_SRCS}/include/clang/Driver/CC1Options.td > ${.TARGET}
+StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/AST/StmtNodes.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/AST \
+		-gen-clang-stmt-nodes \
+		${CLANG_SRCS}/include/clang/AST/StmtNodes.td > ${.TARGET}
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPADD+=		${TGHDRS:C/$/.inc.h/}
