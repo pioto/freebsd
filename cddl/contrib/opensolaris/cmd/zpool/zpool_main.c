@@ -1616,7 +1616,7 @@ show_import(nvlist_t *config)
 	}
 
 	if (msgid != NULL)
-		(void) printf(gettext("   see: http://www.sun.com/msg/%s\n"),
+		(void) printf(gettext("   see: https://www.illumos.org/msg/%s\n"),
 		    msgid);
 
 	(void) printf(gettext(" config:\n\n"));
@@ -3683,7 +3683,7 @@ print_dedup_stats(nvlist_t *config)
  *        pool: tank
  *	status: DEGRADED
  *	reason: One or more devices ...
- *         see: http://www.sun.com/msg/ZFS-xxxx-01
+ *         see: https://www.illumos.org/msg/ZFS-xxxx-01
  *	config:
  *		mirror		DEGRADED
  *                c1t0d0	OK
@@ -3891,7 +3891,7 @@ status_callback(zpool_handle_t *zhp, void *data)
 	}
 
 	if (msgid != NULL)
-		(void) printf(gettext("   see: http://www.sun.com/msg/%s\n"),
+		(void) printf(gettext("   see: https://www.illumos.org/msg/%s\n"),
 		    msgid);
 
 	if (config != NULL) {
