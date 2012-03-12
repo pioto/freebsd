@@ -319,11 +319,11 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 	/* If absolute path, use it */
 	if (*fname == '/')
 	    dir = "/";
-	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/tar cf - -C %s %s | /usr/bin/tar xpf -",
+	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/bsdtar cf - -C %s %s | /usr/bin/bsdtar xpf -",
 		 dir, fname);
     }
     else
-	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/tar cf - %s | /usr/bin/tar xpf - -C %s",
+	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/bsdtar cf - %s | /usr/bin/bsdtar xpf - -C %s",
 		 fname, dir);
 #ifdef DEBUG
     printf("Using '%s' to copy trees.\n", cmd);
@@ -360,7 +360,7 @@ unpack(const char *pkg, const char *flist)
     }
     else
 	comp = "-j";
-    if (vsystem("/usr/bin/tar -xp %s -f '%s' %s", comp, pkg, flist ? flist : "")) {
+    if (vsystem("/usr/bin/bsdtar -xp %s -f '%s' %s", comp, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
 	return 1;
     }

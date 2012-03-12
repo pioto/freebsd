@@ -362,7 +362,7 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
     char *prefix = NULL;
 
 
-    args[nargs++] = "tar";	/* argv[0] */
+    args[nargs++] = "bsdtar";	/* argv[0] */
 
     if (*pkg == '/')
 	snprintf(tball, FILENAME_MAX, "%s.%s", pkg, suff);
@@ -424,7 +424,7 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
 	dup2(pipefds[0], 0);
 	close(pipefds[0]);
 	close(pipefds[1]);
-	execv("/usr/bin/tar", (char * const *)(uintptr_t)args);
+	execv("/usr/bin/bsdtar", (char * const *)(uintptr_t)args);
 	cleanup(0);
 	errx(2, "%s: failed to execute tar command", __func__);
     }

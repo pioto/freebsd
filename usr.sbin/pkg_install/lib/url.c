@@ -137,7 +137,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	dup2(pfd[0], 0);
 	for (fd = getdtablesize() - 1; fd >= 3; --fd)
 	    close(fd);
-	execl("/usr/bin/tar", "tar",
+	execl("/usr/bin/bsdtar", "bsdtar",
 	    Verbose ? "-xpjvf" : "-xpjf",
 	    "-", (char *)0);
 	_exit(2);

@@ -113,11 +113,11 @@ trylink(const char *from, const char *to)
     return -1;
 }
 
-#define STARTSTRING "/usr/bin/tar cf -"
+#define STARTSTRING "/usr/bin/bsdtar cf -"
 #define TOOBIG(str) (int)strlen(str) + 6 + (int)strlen(home) + where_count > maxargs
 #define PUSHOUT() /* push out string */ \
 	if (where_count > (int)sizeof(STARTSTRING)-1) { \
-		    strcat(where_args, "|/usr/bin/tar xpf -"); \
+		    strcat(where_args, "|/usr/bin/bsdtar xpf -"); \
 		    if (system(where_args)) { \
 			cleanup(0); \
 			errx(2, "%s: can't invoke tar pipeline", __func__); \
